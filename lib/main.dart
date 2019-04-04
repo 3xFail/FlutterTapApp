@@ -59,10 +59,12 @@ class _AppState extends State<MyApp> {
   }
 }
 
+bool _upgradeBuyButtonEnable = false;
+
 class UpgradeCard extends StatelessWidget {
 
   //final int index;
-  final VoidCallback onPressed;
+  VoidCallback onPressed;
   final String upgradeName;
   final String upgradeCost;
   final IconData upgradeIcon;
@@ -73,6 +75,10 @@ class UpgradeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if(!_upgradeBuyButtonEnable)
+    {
+      onPressed = null;
+    }
     return Card(
       child: Column(
         children: [
@@ -115,7 +121,7 @@ class CounterPage extends StatelessWidget {
                 
               ),
               Expanded(child: UpgradeCard(
-                'Better Clicks',
+                'Better Clicks ${CounterBloc.randomValue}',
                 state.purchaseCost.toString(),
                 () {
                   _counterBloc.dispatch(Purchase());
@@ -142,18 +148,20 @@ abstract class CounterEvent {  }
 class IncrementCounter extends CounterEvent{ }
 class Purchase extends CounterEvent{}
 
-const int _kMinRandomValue = 0;
-const int _kMaxRandomValue = 100; 
+const int _kMinRandomValue = 1;
+const int _kMaxRandomValue = 10; 
 
 class CounterState {
   final int purchaseCost;
   final int bank;
+  final String upgradeName;
 
-  CounterState(this.purchaseCost, this.bank);
+  CounterState(this.purchaseCost, this.bank, {this.upgradeName});
 
   CounterState copyWith({
     int purchaseCost,
-    int bank
+    int bank,
+    String upgradeName
   }) {
     return CounterState(
       purchaseCost ?? this.purchaseCost,
@@ -169,7 +177,7 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
   }
 
   @override
-  CounterState get initialState => CounterState(10, 100);
+  CounterState get initialState => CounterState(10, 0);
 
   static Random rnd = Random();
   final int min = 1;
@@ -178,9 +186,6 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
   static int randomValue;
   final int startingCost = 10;
   final int percentageCostIncrease = 15;
-  
-
-  String _upgradeName = 'Tap Bonus + $randomValue';
 
   int incrementCount = 1;
 
@@ -189,6 +194,10 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     if(event is IncrementCounter) {
 
       // purchaseButtonEnabled = purchaseCost <= bank;
+      if((currentState.bank+incrementCount) >= currentState.purchaseCost)
+      {
+        _upgradeBuyButtonEnable = true;
+      }
 
       yield CounterState(
         currentState.purchaseCost,
@@ -198,11 +207,18 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
 
     if(event is Purchase) {
 
-      // Filtering logic
+
       // Deal with bank amount changes
       incrementCount += randomValue;
-      final newPurchaseCost = currentState.purchaseCost + (currentState.purchaseCost * (percentageCostIncrease * incrementCount));
+      randomValue = _kMinRandomValue + rnd.nextInt(_kMaxRandomValue - _kMinRandomValue);
+      final newPurchaseCost = currentState.purchaseCost + incrementCount;
       final newBank = currentState.bank - currentState.purchaseCost;
+
+      //Update the button state
+      if(newBank < newPurchaseCost)
+      {
+        _upgradeBuyButtonEnable = false;
+      }
 
       yield CounterState(
         newPurchaseCost,
